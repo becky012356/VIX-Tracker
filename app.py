@@ -2,29 +2,32 @@ import streamlit as st
 import yfinance as yf
 import matplotlib.pyplot as plt
 
-# 網頁標題
-st.title("📈 金融數據觀測站")
+st.set_page_config(page_title="金融觀測站", layout="wide")
+st.title("📊 市場數據視覺化")
 
-# 側邊欄：讓使用者輸入
+# 側邊欄設定
 with st.sidebar:
-    st.header("設定參數")
-    target = st.selectbox("選擇標的", ["黃金期貨 (GC=F)", "恐慌指數 (^VIX)"])
-    start_date = st.date_input("開始日期")
-    end_date = st.date_input("結束日期")
+    ticker = st.selectbox("選擇標的", ["^VIX", "GC=F"], format_func=lambda x: "恐慌指數 (VIX)" if x=="^VIX" else "黃金期貨")
+    start = st.date_input("開始日期", value=yf.pd.to_datetime("2024-01-01"))
+    end = st.date_input("結束日期")
 
-if st.button("開始繪圖"):
-    ticker = "GC=F" if "黃金" in target else "^VIX"
-    data = yf.download(ticker, start=start_date, end=end_date)
-    
-    if not data.empty:
-        # 繪圖
-        fig, ax = plt.subplots(figsize=(10, 5))
-        color = 'gold' if ticker == "GC=F" else 'red'
-        ax.bar(data.index.strftime('%m-%d'), data['Close'].values.flatten(), color=color)
-        plt.xticks(rotation=45)
+if st.button("更新圖表"):
+    with st.spinner('資料讀取中...'):
+        df = yf.download(ticker, start=start, end=end)
         
-        # 在 Streamlit 顯示圖表
-        st.pyplot(fig)
-        st.write("### 數據明細", data.tail())
-    else:
-        st.error("此區間無資料，請重新選擇！")
+        if len(df) > 0:
+            # 確保資料格式正確
+            prices = df['Close'].values.flatten()
+            dates = df.index.strftime('%m-%d')
+            
+            # 繪圖
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.bar(dates, prices, color='skyblue', edgecolor='black')
+            ax.set_title(f"{ticker} Trend")
+            plt.xticks(rotation=45)
+            
+            # 顯示
+            st.pyplot(fig)
+            st.dataframe(df.tail()) # 順便顯示最後幾筆數字
+        else:
+            st.error("此區間抓不到資料，請檢查日期設定！")
